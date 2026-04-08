@@ -22,15 +22,16 @@ def init_csv():
     if not file_exists:
         writer.writerow([
             "timestamp_utc",
-            "sentence_type",
             "latitude",
             "longitude",
-            "altitude",
-            "num_sats",
-            "speed_over_ground",
+            "speed_kmh",
         ])
 
     return csvfile, writer
+
+
+def knots_to_kmh(knots):
+    return float(knots) * 1.852 if knots else 0.0
 
 
 def main():
@@ -38,7 +39,9 @@ def main():
     csvfile, writer = init_csv()
     ser = serial.Serial(PORT, BAUDRATE, timeout=1)
 
-    print(f"Logging GPS data to {OUTPUT_FILE}...")
+    print("Logging clean GPS data...")
+
+    last_timestamp = None
 
     try:
         while True:
@@ -49,36 +52,43 @@ def main():
             try:
                 msg = pynmea2.parse(line)
 
-                latitude = getattr(msg, "latitude", "")
-                longitude = getattr(msg, "longitude", "")
-                altitude = getattr(msg, "altitude", "")
-                num_sats = getattr(msg, "num_sats", "")
-                speed = getattr(msg, "spd_over_grnd", "")
+                # Only use RMC
+                if msg.sentence_type != "RMC":
+                    continue
 
-                if latitude != "" and longitude != "":
-                    timestamp = datetime.now(UTC).isoformat()
+                # Skip invalid fixes
+                if msg.status != "A":
+                    continue
 
-                    writer.writerow([
-                        timestamp,
-                        msg.sentence_type,
-                        latitude,
-                        longitude,
-                        altitude,
-                        num_sats,
-                        speed,
-                    ])
-                    csvfile.flush()
+                # Avoid duplicates (same second)
+                if msg.timestamp == last_timestamp:
+                    continue
 
-                    print(
-                        f"{timestamp} | {msg.sentence_type} | "
-                        f"Lat: {latitude}, Lon: {longitude}"
-                    )
+                last_timestamp = msg.timestamp
+
+                lat = msg.latitude
+                lon = msg.longitude
+                speed_kmh = knots_to_kmh(msg.spd_over_grnd)
+
+                timestamp = datetime.now(UTC).isoformat()
+
+                writer.writerow([
+                    timestamp,
+                    lat,
+                    lon,
+                    round(speed_kmh, 2),
+                ])
+                csvfile.flush()
+
+                print(
+                    f"{timestamp} | Lat: {lat}, Lon: {lon}, Speed: {round(speed_kmh,2)} km/h"
+                )
 
             except pynmea2.ParseError:
                 continue
 
     except KeyboardInterrupt:
-        print("\nLogging stopped by user.")
+        print("\nStopped logging.")
     finally:
         csvfile.close()
         ser.close()
