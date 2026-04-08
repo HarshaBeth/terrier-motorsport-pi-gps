@@ -17,7 +17,7 @@ def main():
             try:
                 msg = pynmea2.parse(line)
 
-                if hasattr(msg, "latitude") and hasattr(msg, "longitude"):
+                if msg.sentence_type == "RMC":
                     print(
                         f"Type: {msg.sentence_type} | "
                         f"Lat: {msg.latitude} | Lon: {msg.longitude}"
