@@ -70,7 +70,7 @@ def main():
                 lon = msg.longitude
                 speed_kmh = knots_to_kmh(msg.spd_over_grnd)
 
-                timestamp = datetime.now(UTC).isoformat()
+                timestamp = f"{msg.datestamp}T{msg.timestamp}"
 
                 writer.writerow([
                     timestamp,
