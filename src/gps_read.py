@@ -20,6 +20,7 @@ def main():
                 if msg.sentence_type == "RMC":
                     print(
                         f"Type: {msg.sentence_type} | "
+                        f"Date: {msg.datestamp} | Time: {msg.timestamp} | "
                         f"Lat: {msg.latitude} | Lon: {msg.longitude}"
                     )
             except pynmea2.ParseError:
